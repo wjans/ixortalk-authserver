@@ -23,17 +23,17 @@
  */
 package com.ixortalk.authserver.security;
 
-import javax.inject.Inject;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ixortalk.authserver.AuthserverApp;
 import com.jayway.restassured.RestAssured;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.springframework.boot.context.embedded.LocalServerPort;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+
+import javax.inject.Inject;
 
 import static com.ixortalk.test.oauth2.OAuth2TestTokens.getAccessToken;
 import static com.jayway.restassured.RestAssured.given;

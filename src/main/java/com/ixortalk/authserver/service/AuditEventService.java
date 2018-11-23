@@ -23,11 +23,6 @@
  */
 package com.ixortalk.authserver.service;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-import javax.inject.Inject;
-
 import com.ixortalk.authserver.config.audit.AuditEventConverter;
 import com.ixortalk.authserver.repository.PersistenceAuditEventRepository;
 import org.springframework.boot.actuate.audit.AuditEvent;
@@ -35,6 +30,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.inject.Inject;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 /**
  * Service for managing audit events.
@@ -70,7 +69,6 @@ public class AuditEventService {
     }
 
     public Optional<AuditEvent> find(Long id) {
-        return Optional.ofNullable(persistenceAuditEventRepository.findOne(id)).map
-            (auditEventConverter::convertToAuditEvent);
+        return persistenceAuditEventRepository.findById(id).map(auditEventConverter::convertToAuditEvent);
     }
 }

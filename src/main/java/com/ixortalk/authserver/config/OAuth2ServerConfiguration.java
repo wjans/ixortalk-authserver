@@ -23,44 +23,114 @@
  */
 package com.ixortalk.authserver.config;
 
-import java.util.List;
-import java.util.Set;
-
-import javax.inject.Inject;
-import javax.sql.DataSource;
-
+import com.ixortalk.authserver.security.AuthoritiesConstants;
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.actuate.autoconfigure.ManagementServerProperties;
+import org.springframework.boot.actuate.autoconfigure.web.server.ManagementServerProperties;
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.ExpressionUrlAuthorizationConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
+import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
+import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.ClientDetails;
 import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
+import org.springframework.security.oauth2.provider.token.TokenEnhancer;
+import org.springframework.security.oauth2.provider.token.TokenEnhancerChain;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
+import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
+import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
+import org.springframework.security.oauth2.provider.token.store.KeyStoreKeyFactory;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.web.filter.CorsFilter;
+
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletResponse;
+import javax.sql.DataSource;
+import java.security.KeyPair;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static java.util.stream.Collectors.toSet;
+import static org.springframework.boot.autoconfigure.security.SecurityProperties.BASIC_AUTH_ORDER;
+import static org.springframework.core.Ordered.HIGHEST_PRECEDENCE;
 import static org.springframework.core.Ordered.LOWEST_PRECEDENCE;
 import static org.springframework.util.StringUtils.hasText;
 
 @Configuration
-@EnableResourceServer
 public class OAuth2ServerConfiguration {
 
-    public static final int LOGIN_CONFIG_ORDER = ManagementServerProperties.BASIC_AUTH_ORDER + 1;
+    public static final int LOGIN_CONFIG_ORDER = BASIC_AUTH_ORDER + 1;
+
+    @EnableResourceServer
+    public static class ResourceServerConfiguration extends ResourceServerConfigurerAdapter {
+
+        private final TokenStore tokenStore;
+
+        private final CorsFilter corsFilter;
+
+        public ResourceServerConfiguration(TokenStore tokenStore, CorsFilter corsFilter) {
+            this.tokenStore = tokenStore;
+            this.corsFilter = corsFilter;
+        }
+
+        @Override
+        public void configure(HttpSecurity http) throws Exception {
+            http
+                .exceptionHandling()
+                .authenticationEntryPoint((request, response, authException) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                .and()
+                .csrf()
+                .disable()
+                .addFilterBefore(corsFilter, UsernamePasswordAuthenticationFilter.class)
+                .headers()
+                .frameOptions()
+                .disable()
+                .and()
+                .sessionManagement()
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                .and()
+                .authorizeRequests()
+                .antMatchers("/api/register").permitAll()
+                .antMatchers("/api/activate").permitAll()
+                .antMatchers("/api/authenticate").permitAll()
+                .antMatchers("/api/account/reset-password/init").permitAll()
+                .antMatchers("/api/account/reset-password/finish").permitAll()
+                .antMatchers("/api/**").authenticated()
+                .antMatchers("/management/health").permitAll()
+                .antMatchers("/management/**").hasAuthority(AuthoritiesConstants.ADMIN)
+                .antMatchers("/v2/api-docs/**").permitAll()
+                .antMatchers("/swagger-resources/configuration/ui").permitAll()
+                .antMatchers("/swagger-ui/index.html").hasAuthority(AuthoritiesConstants.ADMIN);
+        }
+
+        @Override
+        public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+            resources.resourceId("jhipster-uaa").tokenStore(tokenStore);
+        }
+    }
 
     @Configuration
     @EnableAuthorizationServer
@@ -75,6 +145,9 @@ public class OAuth2ServerConfiguration {
 
         @Inject
         private IxorTalkProperties ixorTalkProperties;
+
+        @Inject
+        private PasswordEncoder passwordEncoder;
 
         @Bean
         public TokenStore tokenStore() {
@@ -117,7 +190,7 @@ public class OAuth2ServerConfiguration {
                         .authorities(client.getAuthorities().toArray(new String[]{}))
                         .authorizedGrantTypes(client.getAuthorizedGrantTypes().toArray(new String[]{}))
                         .autoApprove(client.getAutoApproveScopes().toArray(new String[]{}))
-                        .secret(client.getSecret())
+                        .secret(passwordEncoder.encode(client.getSecret()))
                         .accessTokenValiditySeconds(client.getTokenValidityInSeconds())
                 );
         }
@@ -157,15 +230,15 @@ public class OAuth2ServerConfiguration {
                         .requestMatchers()
                         .antMatchers(requestMatchers())
                         .and()
-                            .logout()
-                            .logoutRequestMatcher(new AntPathRequestMatcher("/signout"))
-                            .logoutSuccessUrl("/login")
+                        .logout()
+                        .logoutRequestMatcher(new AntPathRequestMatcher("/signout"))
+                        .logoutSuccessUrl("/login")
                         .and()
-                            .authorizeRequests()
-                            .antMatchers("/").permitAll();
+                        .authorizeRequests()
+                        .antMatchers("/").permitAll();
 
-                if (!managementServerProperties.getSecurity().isEnabled() && hasText(managementServerProperties.getContextPath())) {
-                    registry = registry.antMatchers(managementServerProperties.getContextPath() + "/**").permitAll();
+                if (hasText(managementServerProperties.getServlet().getContextPath())) {
+                    registry = registry.antMatchers(managementServerProperties.getServlet().getContextPath() + "/**").permitAll();
                 }
 
                 registry
@@ -176,8 +249,8 @@ public class OAuth2ServerConfiguration {
 
             private String[] requestMatchers() {
                 List<String> requestMatchers = newArrayList("/login", "/signout", "/reset", "/", "/oauth/authorize", "/oauth/confirm_access");
-                if (!managementServerProperties.getSecurity().isEnabled() && hasText(managementServerProperties.getContextPath())) {
-                    requestMatchers.add(managementServerProperties.getContextPath() + "/**");
+                if (hasText(managementServerProperties.getServlet().getContextPath())) {
+                    requestMatchers.add(managementServerProperties.getServlet().getContextPath() + "/**");
                 }
                 return requestMatchers.toArray(new String[0]);
             }

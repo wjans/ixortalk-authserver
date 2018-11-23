@@ -175,11 +175,11 @@ public class UserResource {
                 Set<Authority> authorities = user.getAuthorities();
                 authorities.clear();
                 managedUserDTO.getAuthorities().stream().forEach(
-                    authority -> authorities.add(authorityRepository.findOne(authority))
+                    authority -> authorities.add(authorityRepository.findOneByName(authority).get())
                 );
                 return ResponseEntity.ok()
                     .headers(HeaderUtil.createAlert("userManagement.updated", managedUserDTO.getLogin()))
-                    .body(new ManagedUserDTO(userRepository.findOne(managedUserDTO.getId()), userService.constructProfilePictureUrl(user)));
+                    .body(new ManagedUserDTO(userRepository.findById(managedUserDTO.getId()).get(), userService.constructProfilePictureUrl(user)));
             })
             .orElseGet(() -> new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR));
     }

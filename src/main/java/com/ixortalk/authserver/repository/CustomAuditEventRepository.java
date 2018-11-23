@@ -23,13 +23,6 @@
  */
 package com.ixortalk.authserver.repository;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import com.ixortalk.authserver.config.audit.AuditEventConverter;
 import com.ixortalk.authserver.domain.PersistentAuditEvent;
 import org.slf4j.Logger;
@@ -39,6 +32,13 @@ import org.springframework.boot.actuate.audit.AuditEventRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static java.time.LocalDateTime.ofInstant;
 import static java.time.ZoneId.systemDefault;
@@ -69,14 +69,12 @@ public class CustomAuditEventRepository implements AuditEventRepository {
         this.auditEventConverter = auditEventConverter;
     }
 
-    @Override
     public List<AuditEvent> find(Date after) {
         Iterable<PersistentAuditEvent> persistentAuditEvents =
             persistenceAuditEventRepository.findByAuditEventDateAfter(
                 toLocalDateTime(after));
         return auditEventConverter.convertToAuditEvent(persistentAuditEvents);
     }
-    @Override
     public List<AuditEvent> find(String principal, Date after) {
         Iterable<PersistentAuditEvent> persistentAuditEvents;
         if (principal == null && after == null) {
@@ -90,7 +88,6 @@ public class CustomAuditEventRepository implements AuditEventRepository {
         return auditEventConverter.convertToAuditEvent(persistentAuditEvents);
     }
 
-    @Override
     public List<AuditEvent> find(String principal, Date after, String type) {
         Iterable<PersistentAuditEvent> persistentAuditEvents =
             persistenceAuditEventRepository.findByPrincipalAndAuditEventDateAfterAndAuditEventType(principal, toLocalDateTime(after), type);
@@ -106,12 +103,17 @@ public class CustomAuditEventRepository implements AuditEventRepository {
             PersistentAuditEvent persistentAuditEvent = new PersistentAuditEvent();
             persistentAuditEvent.setPrincipal(event.getPrincipal());
             persistentAuditEvent.setAuditEventType(event.getType());
-            Instant instant = Instant.ofEpochMilli(event.getTimestamp().getTime());
+            Instant instant = event.getTimestamp();
             persistentAuditEvent.setAuditEventDate(ofInstant(instant, systemDefault()));
             Map<String, String> eventData = auditEventConverter.convertDataToStrings(event.getData());
             persistentAuditEvent.setData(truncate(eventData));
             persistenceAuditEventRepository.save(persistentAuditEvent);
         }
+    }
+
+    @Override
+    public List<AuditEvent> find(String principal, Instant after, String type) {
+        return null;
     }
 
     /**

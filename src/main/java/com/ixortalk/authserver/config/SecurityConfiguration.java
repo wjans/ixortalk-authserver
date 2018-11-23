@@ -24,7 +24,6 @@
 package com.ixortalk.authserver.config;
 
 
-import org.springframework.boot.actuate.autoconfigure.ManagementServerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -38,10 +37,12 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.data.repository.query.SecurityEvaluationContextExtension;
-
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 import javax.inject.Inject;
 
@@ -55,6 +56,9 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
     @Inject
     private UserDetailsService userDetailsService;
+
+    @Inject
+    private JHipsterProperties jHipsterProperties;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -87,18 +91,16 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
             .antMatchers("/h2-console/**");
     }
 
-    @Override
-    public void configure(HttpSecurity http) throws Exception {
-        http
-            .httpBasic().realmName("authserver")
-            .and()
-                .sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            .and()
-                .requestMatchers().antMatchers("/oauth/authorize")
-            .and()
-                .authorizeRequests()
-                .antMatchers("/oauth/authorize").authenticated();
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = jHipsterProperties.getCors();
+        if (config.getAllowedOrigins() != null && !config.getAllowedOrigins().isEmpty()) {
+            source.registerCorsConfiguration("/api/**", config);
+            source.registerCorsConfiguration("/management/**", config);
+            source.registerCorsConfiguration("/v2/api-docs", config);
+        }
+        return new CorsFilter(source);
     }
 
     @Override
@@ -111,4 +113,5 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     public SecurityEvaluationContextExtension securityEvaluationContextExtension() {
         return new SecurityEvaluationContextExtension();
     }
+
 }

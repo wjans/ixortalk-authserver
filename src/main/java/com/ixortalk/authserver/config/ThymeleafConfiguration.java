@@ -25,12 +25,12 @@ package com.ixortalk.authserver.config;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.bind.RelaxedPropertyResolver;
 import org.springframework.context.MessageSource;
-import org.springframework.context.annotation.*;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Description;
 import org.springframework.context.support.ReloadableResourceBundleMessageSource;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.PropertyResolver;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 import org.thymeleaf.templateresolver.FileTemplateResolver;
 
@@ -70,8 +70,7 @@ public class ThymeleafConfiguration {
 
     @Bean
     public MessageSource messageSource(Environment environment) {
-        PropertyResolver propertyResolver = new RelaxedPropertyResolver(environment, "spring.messages.");
-        String baseName = propertyResolver.getProperty("basename");
+        String baseName = environment.getProperty("spring.messages.basename");
         final ReloadableResourceBundleMessageSource messageSource;
         messageSource = new ReloadableResourceBundleMessageSource();
         messageSource.setDefaultEncoding("UTF-8");

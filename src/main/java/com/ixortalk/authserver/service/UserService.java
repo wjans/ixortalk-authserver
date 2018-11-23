@@ -123,7 +123,7 @@ public class UserService {
         String langKey) {
 
         User newUser = new User();
-        Authority authority = authorityRepository.findOne("ROLE_USER");
+        Authority authority = authorityRepository.findOneByName("ROLE_USER").get();
         Set<Authority> authorities = new HashSet<>();
         String encryptedPassword = passwordEncoder.encode(password);
         newUser.setLogin(login);
@@ -159,7 +159,7 @@ public class UserService {
         if (managedUserDTO.getAuthorities() != null) {
             Set<Authority> authorities = new HashSet<>();
             managedUserDTO.getAuthorities().stream().forEach(
-                authority -> authorities.add(authorityRepository.findOne(authority))
+                authority -> authorities.add(authorityRepository.findOneByName(authority).get())
             );
             user.setAuthorities(authorities);
         }
@@ -215,7 +215,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public User getUserWithAuthorities(Long id) {
-        User user = userRepository.findOne(id);
+        User user = userRepository.findById(id).get();
         user.getAuthorities().size(); // eagerly load the association
         return user;
     }

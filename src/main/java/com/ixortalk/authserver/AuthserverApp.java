@@ -23,37 +23,30 @@
  */
 package com.ixortalk.authserver;
 
+import com.ixortalk.authserver.config.Constants;
+import com.ixortalk.authserver.config.JHipsterProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.SimpleCommandLinePropertySource;
+
+import javax.annotation.PostConstruct;
+import javax.inject.Inject;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.Collection;
 
-import javax.annotation.PostConstruct;
-import javax.inject.Inject;
-
-import com.ixortalk.authserver.config.Constants;
-import com.ixortalk.authserver.config.JHipsterProperties;
-import io.prometheus.client.spring.boot.EnablePrometheusEndpoint;
-import io.prometheus.client.spring.boot.EnableSpringBootMetricsCollector;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.actuate.autoconfigure.MetricFilterAutoConfiguration;
-import org.springframework.boot.actuate.autoconfigure.MetricRepositoryAutoConfiguration;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.context.MessageSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.liquibase.LiquibaseProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.cloud.netflix.feign.EnableFeignClients;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.SimpleCommandLinePropertySource;
-
 @ComponentScan
-@EnableAutoConfiguration(exclude = {MetricFilterAutoConfiguration.class, MetricRepositoryAutoConfiguration.class, MessageSourceAutoConfiguration.class})
+@EnableAutoConfiguration(exclude = {MessageSourceAutoConfiguration.class})
 @EnableConfigurationProperties({JHipsterProperties.class, LiquibaseProperties.class})
-@EnableSpringBootMetricsCollector
-@EnablePrometheusEndpoint
 @EnableFeignClients
 public class AuthserverApp {
 
